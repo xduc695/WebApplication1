@@ -101,6 +101,16 @@ builder.Services.AddControllers();
 
 // 7. Swagger
 builder.Services.AddEndpointsApiExplorer();
+// CORS cho Flutter Web
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll", policy =>
+        policy
+            .AllowAnyOrigin()   // Dev: cho tất cả origin. Sau này deploy có thể siết lại.
+            .AllowAnyMethod()
+            .AllowAnyHeader());
+});
+
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo { Title = "ClassMate API", Version = "v1" });
@@ -139,7 +149,7 @@ if (app.Environment.IsDevelopment())
 }
 
 // app.UseHttpsRedirection();
-
+app.UseCors("AllowAll");
 // 8. Serve static Avatars
 var avatarPath = Path.Combine(app.Environment.ContentRootPath, "Avatars");
 Directory.CreateDirectory(avatarPath);

@@ -1,6 +1,7 @@
 ﻿using ClassMate.Api.Data;
 using ClassMate.Api.DTOs;
 using ClassMate.Api.Entities;
+using ClassMate.Api.Utils;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -31,15 +32,20 @@ namespace ClassMate.Api.Controllers
 
             // tạo code ngẫu nhiên (có thể dùng GUID)
             var code = Guid.NewGuid().ToString("N").Substring(0, 8).ToUpperInvariant();
+            var startUtc = request.StartTime.Kind == DateTimeKind.Utc
+        ? request.StartTime
+        : DateTime.SpecifyKind(request.StartTime, DateTimeKind.Utc);
 
+            var endUtc = request.EndTime.Kind == DateTimeKind.Utc
+                ? request.EndTime
+                : DateTime.SpecifyKind(request.EndTime, DateTimeKind.Utc);
             var session = new AttendanceSession
             {
                 ClassSectionId = request.ClassSectionId,
-                StartTime = request.StartTime,
-                EndTime = request.EndTime,
+                StartTime = startUtc,
+                EndTime = endUtc,
                 Code = code
             };
-
             _context.AttendanceSessions.Add(session);
             await _context.SaveChangesAsync();
 
@@ -47,8 +53,8 @@ namespace ClassMate.Api.Controllers
             {
                 session.Id,
                 session.ClassSectionId,
-                session.StartTime,
-                session.EndTime,
+                StartTime = session.StartTime.ToVietnamTime(),
+                EndTime = session.EndTime.ToVietnamTime(),
                 session.Code // frontend lấy code này render QR
             });
         }
@@ -126,8 +132,8 @@ namespace ClassMate.Api.Controllers
                 session.Id,
                 session.ClassSectionId,
                 session.Code,
-                session.StartTime,
-                session.EndTime,
+                StartTime = session.StartTime.ToVietnamTime(),
+                EndTime = session.EndTime.ToVietnamTime(),
                 TotalChecked = records.Count,
                 Records = records
             });
@@ -149,7 +155,7 @@ namespace ClassMate.Api.Controllers
                 .Select(r => new
                 {
                     r.Id,
-                    r.CheckedInAt,
+                    CheckedInAt=r.CheckedInAt.ToVietnamTime(),
                     SessionId = r.AttendanceSessionId,
                     r.AttendanceSession.Code,
                     ClassId = r.AttendanceSession.ClassSectionId,

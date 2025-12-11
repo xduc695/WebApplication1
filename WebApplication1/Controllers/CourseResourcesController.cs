@@ -1,6 +1,7 @@
 ﻿using ClassMate.Api.Data;
 using ClassMate.Api.DTOs;
 using ClassMate.Api.Entities;
+using ClassMate.Api.Utils;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -64,7 +65,7 @@ namespace ClassMate.Api.Controllers
                 Description = res.Description,
                 FileUrl = res.FileUrl,
                 LinkUrl = res.LinkUrl,
-                CreatedAt = res.CreatedAt
+                CreatedAt = res.CreatedAt.ToVietnamTime()
             });
         }
 
@@ -87,7 +88,7 @@ namespace ClassMate.Api.Controllers
                 Description = r.Description,
                 FileUrl = r.FileUrl,
                 LinkUrl = r.LinkUrl,
-                CreatedAt = r.CreatedAt
+                CreatedAt = r.CreatedAt.ToVietnamTime()
             }));
         }
     }

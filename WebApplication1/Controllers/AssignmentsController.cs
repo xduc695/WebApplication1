@@ -1,6 +1,7 @@
 ﻿using ClassMate.Api.Data;
 using ClassMate.Api.DTOs;
 using ClassMate.Api.Entities;
+using ClassMate.Api.Utils;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -75,7 +76,7 @@ namespace ClassMate.Api.Controllers
                 Title = assignment.Title,
                 Content = assignment.Content,
                 DueDate = assignment.DueDate,
-                CreatedAt = assignment.CreatedAt,
+                CreatedAt = assignment.CreatedAt.ToVietnamTime(),
                 ClassSectionId = classId,
                 AttachmentUrl = assignment.AttachmentUrl
             });
@@ -100,7 +101,7 @@ namespace ClassMate.Api.Controllers
                     Title = a.Title,
                     Content = a.Content,
                     DueDate = a.DueDate,
-                    CreatedAt = a.CreatedAt,
+                    CreatedAt = a.CreatedAt.ToVietnamTime(),
                     ClassSectionId = a.ClassSectionId,
                     AttachmentUrl = a.AttachmentUrl
                 })
@@ -125,7 +126,7 @@ namespace ClassMate.Api.Controllers
                 Title = a.Title,
                 Content = a.Content,
                 DueDate = a.DueDate,
-                CreatedAt = a.CreatedAt,
+                CreatedAt = a.CreatedAt.ToVietnamTime(),
                 ClassSectionId = a.ClassSectionId,
                 AttachmentUrl = a.AttachmentUrl
             });

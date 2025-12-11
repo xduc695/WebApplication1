@@ -1,10 +1,12 @@
 ﻿using ClassMate.Api.DTOs;
 using ClassMate.Api.Entities;
 using ClassMate.Api.Services;
+using ClassMate.Api.Utils;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 
 namespace ClassMate.Api.Controllers
@@ -36,6 +38,9 @@ namespace ClassMate.Api.Controllers
         // ==========================
         //  ĐĂNG KÝ + UPLOAD AVATAR
         // ==========================
+        // ==========================
+        //  ĐĂNG KÝ + UPLOAD AVATAR
+        // ==========================
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromForm] RegisterRequest request)
         {
@@ -58,7 +63,6 @@ namespace ClassMate.Api.Controllers
                 CreatedAt = DateTime.UtcNow
             };
 
-            // Tạo user trước
             var result = await _userManager.CreateAsync(user, request.Password);
 
             if (!result.Succeeded)
@@ -87,16 +91,17 @@ namespace ClassMate.Api.Controllers
                     await request.Avatar.CopyToAsync(stream);
                 }
 
-                // Lưu đường dẫn tương đối cho FE
                 user.AvatarUrl = $"/avatars/{fileName}";
                 await _userManager.UpdateAsync(user);
             }
 
-            // Gán role
-            var roleName = string.IsNullOrWhiteSpace(request.Role) ? "Student" : request.Role;
+            // ✅ Luôn gán role mặc định là Student
+            var roleName = "Student";
 
             if (!await _roleManager.RoleExistsAsync(roleName))
-                return BadRequest(new { message = $"Role {roleName} does not exist" });
+            {
+                await _roleManager.CreateAsync(new IdentityRole(roleName));
+            }
 
             await _userManager.AddToRoleAsync(user, roleName);
 
@@ -116,6 +121,7 @@ namespace ClassMate.Api.Controllers
                 avatarUrl = user.AvatarUrl
             });
         }
+
 
         // ==========================
         //  LOGIN (CÓ RATE LIMIT)
@@ -183,7 +189,7 @@ namespace ClassMate.Api.Controllers
                 fullName = user.FullName,
                 email = user.Email,
                 avatarUrl = user.AvatarUrl,
-                createdAt = user.CreatedAt
+                createdAt = user.CreatedAt.ToVietnamTime()
             });
         }
         [Authorize]
@@ -278,6 +284,124 @@ namespace ClassMate.Api.Controllers
                 createdAt = user.CreatedAt
             });
         }
+        [Authorize(Roles = "Admin")]
+        [HttpGet]
+        public async Task<IActionResult> GetAllUsers()
+        {
+            var users = await _userManager.Users.ToListAsync();
 
+            var result = new List<object>();
+
+            foreach (var u in users)
+            {
+                var roles = await _userManager.GetRolesAsync(u);
+                result.Add(new
+                {
+                    id = u.Id,
+                    userName = u.UserName,
+                    fullName = u.FullName,
+                    email = u.Email,
+                    roles = roles
+                });
+            }
+
+            return Ok(result);
+        }
+
+        // ==========================
+        //  ĐỔI ROLE USER
+        // ==========================
+        [Authorize(Roles = "Admin")]
+        [HttpPut("{userId}/role")]
+        public async Task<IActionResult> UpdateUserRole(
+            string userId,
+            [FromBody] UpdateUserRoleRequest request)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var user = await _userManager.FindByIdAsync(userId);
+            if (user == null)
+                return NotFound(new { message = "User not found" });
+
+            var roleName = request.Role.Trim();
+
+            // Giới hạn role cho chắc (tránh bậy bạ)
+            var allowedRoles = new[] { "Admin", "Teacher", "Student" };
+            if (!allowedRoles.Contains(roleName))
+                return BadRequest(new { message = "Invalid role" });
+
+            // Đảm bảo role tồn tại
+            if (!await _roleManager.RoleExistsAsync(roleName))
+            {
+                await _roleManager.CreateAsync(new IdentityRole(roleName));
+            }
+
+            // Không cho admin tự gỡ role Admin của chính mình (an toàn)
+            var currentAdminId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (currentAdminId == user.Id && roleName != "Admin")
+            {
+                return BadRequest(new { message = "You cannot remove your own Admin role" });
+            }
+
+            // Xóa tất cả role cũ, gán role mới
+            var currentRoles = await _userManager.GetRolesAsync(user);
+            if (currentRoles.Any())
+            {
+                await _userManager.RemoveFromRolesAsync(user, currentRoles);
+            }
+
+            var result = await _userManager.AddToRoleAsync(user, roleName);
+            if (!result.Succeeded)
+            {
+                return BadRequest(new
+                {
+                    message = "Update role failed",
+                    errors = result.Errors.Select(e => e.Description)
+                });
+            }
+
+            return Ok(new
+            {
+                message = "Role updated successfully",
+                userId = user.Id,
+                newRole = roleName
+            });
+        }
+
+        // ==========================
+        //  XOÁ TÀI KHOẢN
+        // ==========================
+        [Authorize(Roles = "Admin")]
+        [HttpDelete("{userId}")]
+        public async Task<IActionResult> DeleteUser(string userId)
+        {
+            var user = await _userManager.FindByIdAsync(userId);
+            if (user == null)
+                return NotFound(new { message = "User not found" });
+
+            var currentAdminId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+            // Không cho tự xoá chính mình (cho an toàn)
+            if (user.Id == currentAdminId)
+            {
+                return BadRequest(new { message = "You cannot delete your own account" });
+            }
+
+            // (Tuỳ bạn, nếu muốn: chặn xoá Admin khác, chỉ cho đổi role thay vì xoá
+            // ở đây mình cho xoá luôn cho đơn giản)
+
+            var result = await _userManager.DeleteAsync(user);
+            if (!result.Succeeded)
+            {
+                return BadRequest(new
+                {
+                    message = "Delete user failed",
+                    errors = result.Errors.Select(e => e.Description)
+                });
+            }
+
+            return Ok(new { message = "User deleted successfully", userId = userId });
+        }
     }
 }

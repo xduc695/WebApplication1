@@ -1,6 +1,7 @@
 ﻿using ClassMate.Api.Data;
 using ClassMate.Api.DTOs;
 using ClassMate.Api.Entities;
+using ClassMate.Api.Utils;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -109,7 +110,7 @@ namespace ClassMate.Api.Controllers
                 s.FileUrl,
                 s.Score,
                 s.Feedback,
-                s.SubmittedAt
+                SubmittedAt =s.SubmittedAt.ToVietnamTime()
             }));
         }
 
@@ -144,7 +145,7 @@ namespace ClassMate.Api.Controllers
                 s.AnswerText,
                 s.Score,
                 s.Feedback,
-                s.SubmittedAt
+                SubmittedAt=s.SubmittedAt.ToVietnamTime()
             }));
         }
 

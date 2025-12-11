@@ -18,8 +18,7 @@ namespace ClassMate.Api.DTOs
         [MinLength(6)]
         public string Password { get; set; } = null!;
 
-        // Student / Teacher / Admin...
-        public string? Role { get; set; } 
+   
 
         // File avatar (có thể null)
         public IFormFile? Avatar { get; set; }

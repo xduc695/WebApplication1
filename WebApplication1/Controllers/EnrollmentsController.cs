@@ -1,6 +1,7 @@
 ﻿using ClassMate.Api.Data;
 using ClassMate.Api.DTOs;
 using ClassMate.Api.Entities;
+using ClassMate.Api.Utils;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -67,7 +68,7 @@ namespace ClassMate.Api.Controllers
                     e.User.FullName,
                     e.User.UserName,
                     e.User.Email,
-                    e.EnrolledAt
+                    EnrolledAt=e.EnrolledAt.ToVietnamTime()
                 })
                 .ToListAsync();
 

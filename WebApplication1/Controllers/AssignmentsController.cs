@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
+using Microsoft.AspNetCore.Identity;
 
 namespace ClassMate.Api.Controllers
 {
@@ -14,11 +15,13 @@ namespace ClassMate.Api.Controllers
     {
         private readonly AppDbContext _context;
         private readonly IWebHostEnvironment _env;
+        private readonly UserManager<AppUser> _userManager;
 
-        public AssignmentsController(AppDbContext context, IWebHostEnvironment env)
+        public AssignmentsController(AppDbContext context, IWebHostEnvironment env, UserManager<AppUser> userManager)
         {
             _context = context;
             _env = env;
+            _userManager = userManager;
         }
 
         // ======================
@@ -31,11 +34,18 @@ namespace ClassMate.Api.Controllers
             [FromForm] AssignmentCreateRequest request)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (userId == null) return Unauthorized();
 
-            var cls = await _context.ClassSections
-                .FirstOrDefaultAsync(c => c.Id == classId && c.TeacherId == userId);
+            var roles = await _userManager.GetRolesAsync(
+                await _userManager.FindByIdAsync(userId)
+            );
+            var isAdmin = roles.Contains("Admin");
 
-            if (cls == null)
+            var cls = await _context.ClassSections.FindAsync(classId);
+            if (cls == null) return NotFound("Class not found.");
+
+            // if not admin, must be the teacher of the class
+            if (!isAdmin && cls.TeacherId != userId)
                 return Forbid("You are not the teacher of this class.");
 
             string? attachmentUrl = null;
@@ -69,7 +79,7 @@ namespace ClassMate.Api.Controllers
             _context.Assignments.Add(assignment);
             await _context.SaveChangesAsync();
 
-            return Ok(new AssignmentResponse
+            return CreatedAtAction(nameof(GetAssignment), new { id = assignment.Id }, new AssignmentResponse
             {
                 Id = assignment.Id,
                 Title = assignment.Title,
@@ -88,8 +98,23 @@ namespace ClassMate.Api.Controllers
         [HttpGet("classes/{classId}/assignments")]
         public async Task<IActionResult> GetAssignments(int classId)
         {
-            var exists = await _context.ClassSections.AnyAsync(c => c.Id == classId);
-            if (!exists) return NotFound("Class not found.");
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (userId == null) return Unauthorized();
+
+            var cls = await _context.ClassSections.FindAsync(classId);
+            if (cls == null) return NotFound("Class not found.");
+
+            var roles = await _userManager.GetRolesAsync(
+                await _userManager.FindByIdAsync(userId)
+            );
+            var isTeacherOrAdmin = roles.Contains("Teacher") || roles.Contains("Admin");
+
+            if (!isTeacherOrAdmin)
+            {
+                var enrolled = await _context.Enrollments
+                    .AnyAsync(e => e.ClassSectionId == classId && e.UserId == userId);
+                if (!enrolled) return Forbid();
+            }
 
             var data = await _context.Assignments
                 .Where(a => a.ClassSectionId == classId)
@@ -116,8 +141,23 @@ namespace ClassMate.Api.Controllers
         [HttpGet("assignments/{id}")]
         public async Task<IActionResult> GetAssignment(int id)
         {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (userId == null) return Unauthorized();
+
             var a = await _context.Assignments.FindAsync(id);
             if (a == null) return NotFound();
+
+            var roles = await _userManager.GetRolesAsync(
+                await _userManager.FindByIdAsync(userId)
+            );
+            var isTeacherOrAdmin = roles.Contains("Teacher") || roles.Contains("Admin");
+
+            if (!isTeacherOrAdmin)
+            {
+                var enrolled = await _context.Enrollments
+                    .AnyAsync(e => e.ClassSectionId == a.ClassSectionId && e.UserId == userId);
+                if (!enrolled) return Forbid();
+            }
 
             return Ok(new AssignmentResponse
             {
@@ -144,9 +184,16 @@ namespace ClassMate.Api.Controllers
             if (assignment == null) return NotFound();
 
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            var cls = await _context.ClassSections.FindAsync(assignment.ClassSectionId);
+            if (userId == null) return Unauthorized();
 
-            if (cls == null || cls.TeacherId != userId)
+            var roles = await _userManager.GetRolesAsync(
+                await _userManager.FindByIdAsync(userId)
+            );
+            var isAdmin = roles.Contains("Admin");
+
+            var cls = await _context.ClassSections.FindAsync(assignment.ClassSectionId);
+            if (cls == null) return NotFound("Class not found.");
+            if (!isAdmin && cls.TeacherId != userId)
                 return Forbid("Not your class.");
 
             assignment.Title = request.Title;
@@ -183,9 +230,16 @@ namespace ClassMate.Api.Controllers
             if (a == null) return NotFound();
 
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            var cls = await _context.ClassSections.FindAsync(a.ClassSectionId);
+            if (userId == null) return Unauthorized();
 
-            if (cls == null || cls.TeacherId != userId)
+            var roles = await _userManager.GetRolesAsync(
+                await _userManager.FindByIdAsync(userId)
+            );
+            var isAdmin = roles.Contains("Admin");
+
+            var cls = await _context.ClassSections.FindAsync(a.ClassSectionId);
+            if (cls == null) return NotFound("Class not found.");
+            if (!isAdmin && cls.TeacherId != userId)
                 return Forbid("Not your class.");
 
             _context.Assignments.Remove(a);

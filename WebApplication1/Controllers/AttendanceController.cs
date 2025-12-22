@@ -160,5 +160,52 @@ namespace ClassMate.Api.Controllers
 
             return Ok(list);
         }
+
+        // Validate attendance code
+        [Authorize]
+        [HttpGet("sessions/validate")]
+        public async Task<IActionResult> ValidateCode([FromQuery] string code)
+        {
+            if (string.IsNullOrWhiteSpace(code))
+                return BadRequest(new { valid = false, message = "Code is required" });
+
+            var session = await _context.AttendanceSessions
+                .FirstOrDefaultAsync(s => s.Code == code);
+
+            if (session == null)
+                return NotFound(new { valid = false, message = "Invalid code" });
+
+            var now = DateTime.UtcNow;
+            bool isActive = now >= session.StartTime && now <= session.EndTime;
+
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            bool isEnrolled = false;
+            bool alreadyCheckedIn = false;
+
+            if (!string.IsNullOrEmpty(userId))
+            {
+                isEnrolled = await _context.Enrollments
+                    .AnyAsync(e => e.UserId == userId && e.ClassSectionId == session.ClassSectionId);
+
+                alreadyCheckedIn = await _context.AttendanceRecords
+                    .AnyAsync(r => r.AttendanceSessionId == session.Id && r.UserId == userId);
+            }
+
+            var anyRecords = await _context.AttendanceRecords
+                .AnyAsync(r => r.AttendanceSessionId == session.Id);
+
+            return Ok(new
+            {
+                valid = true,
+                sessionId = session.Id,
+                classSectionId = session.ClassSectionId,
+                isActive,
+                isEnrolled,
+                alreadyCheckedIn,
+                anyRecords,
+                startTime = session.StartTime,
+                endTime = session.EndTime
+            });
+        }
     }
 }

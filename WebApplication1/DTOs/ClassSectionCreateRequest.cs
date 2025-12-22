@@ -30,5 +30,6 @@ namespace ClassMate.Api.DTOs
 
         // 🔥 Mã lớp share cho sinh viên
         public string JoinCode { get; set; } = null!;
+        public bool IsTeacher { get; set; }
     }
 }

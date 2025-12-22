@@ -14,6 +14,18 @@ using ClassMate.Api.Middlewares;   // Audit log
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll",
+        builder =>
+        {
+            builder.AllowAnyOrigin()   // Cho phép mọi nguồn (Web, Mobile...)
+                   .AllowAnyMethod()   // Cho phép GET, POST, PUT, DELETE...
+                   .AllowAnyHeader();  // Cho phép mọi Header
+        });
+});
+
+
 // 1. DbContext
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(
@@ -131,6 +143,8 @@ builder.Services.AddSwaggerGen(c =>
 });
 
 var app = builder.Build();
+
+app.UseCors("AllowAll");
 
 if (app.Environment.IsDevelopment())
 {

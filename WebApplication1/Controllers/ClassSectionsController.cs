@@ -49,11 +49,12 @@ namespace ClassMate.Api.Controllers
             else
             {
                 // Sinh viên: lớp mình được enroll
-                query = _context.Enrollments
-                    .Where(e => e.UserId == userId)
-                    .Select(e => e.ClassSection)
+                // Thay đổi: bắt đầu từ ClassSections và lọc bằng Enrollments.Any(...) 
+                // để EF tạo JOIN đúng và trả về các ClassSection có Course/Teacher kèm theo.
+                query = _context.ClassSections
                     .Include(c => c.Course)
-                    .Include(c => c.Teacher);
+                    .Include(c => c.Teacher)
+                    .Where(c => c.Enrollments.Any(e => e.UserId == userId));
             }
 
             var list = await query
@@ -68,7 +69,8 @@ namespace ClassMate.Api.Controllers
                     CourseId = c.CourseId,
                     CourseName = c.Course.Name,
                     TeacherId = c.TeacherId,
-                    TeacherName = c.Teacher.FullName
+                    TeacherName = c.Teacher.FullName,
+                    IsTeacher = c.TeacherId == userId
                 }).ToListAsync();
 
             return Ok(list);
@@ -215,6 +217,48 @@ namespace ClassMate.Api.Controllers
             _context.ClassSections.Remove(cls);
             await _context.SaveChangesAsync();
             return NoContent();
+        }
+
+        [Authorize]
+        [HttpGet("{id:int}/students")]
+        public async Task<ActionResult<IEnumerable<object>>> GetStudentsInClass(int id)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (userId == null) return Unauthorized();
+
+            // kiểm tra class tồn tại
+            var cls = await _context.ClassSections.FindAsync(id);
+            if (cls == null) return NotFound();
+
+            // lấy roles
+            var roles = await _userManager.GetRolesAsync(
+                await _userManager.FindByIdAsync(userId)
+            );
+            bool isTeacher = roles.Contains("Teacher") || roles.Contains("Admin");
+
+            // nếu không phải teacher/admin thì kiểm tra student có enroll vào lớp không
+            if (!isTeacher)
+            {
+                var enrolled = await _context.Enrollments
+                    .AnyAsync(e => e.ClassSectionId == id && e.UserId == userId);
+
+                if (!enrolled)
+                    return Forbid();
+            }
+
+            // lấy danh sách sinh viên trong lớp
+            var students = await _context.Enrollments
+                .Where(e => e.ClassSectionId == id)
+                .Include(e => e.User)
+                .Select(e => new
+                {
+                    Id = e.User.Id,
+                    FullName = e.User.FullName,
+                    Email = e.User.Email
+                })
+                .ToListAsync();
+
+            return Ok(students);
         }
     }
 }

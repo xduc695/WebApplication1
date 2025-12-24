@@ -105,9 +105,6 @@ namespace ClassMate.Api.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<string>("AttachmentUrl")
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<int>("ClassSectionId")
                         .HasColumnType("int");
 
@@ -130,6 +127,32 @@ namespace ClassMate.Api.Migrations
                     b.HasIndex("ClassSectionId");
 
                     b.ToTable("Assignments");
+                });
+
+            modelBuilder.Entity("ClassMate.Api.Entities.AssignmentFile", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("AssignmentId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("FileUrl")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AssignmentId");
+
+                    b.ToTable("AssignmentFiles");
                 });
 
             modelBuilder.Entity("ClassMate.Api.Entities.AttendanceRecord", b =>
@@ -333,9 +356,6 @@ namespace ClassMate.Api.Migrations
                     b.Property<string>("Feedback")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("FileUrl")
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<double?>("Score")
                         .HasColumnType("float");
 
@@ -353,6 +373,32 @@ namespace ClassMate.Api.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("Submissions");
+                });
+
+            modelBuilder.Entity("ClassMate.Api.Entities.SubmissionFile", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("FileUrl")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("SubmissionId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SubmissionId");
+
+                    b.ToTable("SubmissionFiles");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
@@ -499,6 +545,17 @@ namespace ClassMate.Api.Migrations
                     b.Navigation("ClassSection");
                 });
 
+            modelBuilder.Entity("ClassMate.Api.Entities.AssignmentFile", b =>
+                {
+                    b.HasOne("ClassMate.Api.Entities.Assignment", "Assignment")
+                        .WithMany("AssignmentFiles")
+                        .HasForeignKey("AssignmentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Assignment");
+                });
+
             modelBuilder.Entity("ClassMate.Api.Entities.AttendanceRecord", b =>
                 {
                     b.HasOne("ClassMate.Api.Entities.AttendanceSession", "AttendanceSession")
@@ -597,6 +654,17 @@ namespace ClassMate.Api.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("ClassMate.Api.Entities.SubmissionFile", b =>
+                {
+                    b.HasOne("ClassMate.Api.Entities.Submission", "Submission")
+                        .WithMany("SubmissionFiles")
+                        .HasForeignKey("SubmissionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Submission");
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
                 {
                     b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole", null)
@@ -650,6 +718,8 @@ namespace ClassMate.Api.Migrations
 
             modelBuilder.Entity("ClassMate.Api.Entities.Assignment", b =>
                 {
+                    b.Navigation("AssignmentFiles");
+
                     b.Navigation("Submissions");
                 });
 
@@ -663,6 +733,11 @@ namespace ClassMate.Api.Migrations
                     b.Navigation("ClassSections");
 
                     b.Navigation("Resources");
+                });
+
+            modelBuilder.Entity("ClassMate.Api.Entities.Submission", b =>
+                {
+                    b.Navigation("SubmissionFiles");
                 });
 #pragma warning restore 612, 618
         }

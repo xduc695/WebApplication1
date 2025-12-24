@@ -36,7 +36,6 @@ namespace ClassMate.Api.Controllers
 
         // ==========================
         //  ĐĂNG KÝ + UPLOAD AVATAR
-        // ==========================
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromForm] RegisterRequest request)
         {
@@ -59,7 +58,6 @@ namespace ClassMate.Api.Controllers
                 CreatedAt = DateTime.UtcNow
             };
 
-            // Tạo user trước
             var result = await _userManager.CreateAsync(user, request.Password);
 
             if (!result.Succeeded)
@@ -88,16 +86,17 @@ namespace ClassMate.Api.Controllers
                     await request.Avatar.CopyToAsync(stream);
                 }
 
-                // Lưu đường dẫn tương đối cho FE
                 user.AvatarUrl = $"/avatars/{fileName}";
                 await _userManager.UpdateAsync(user);
             }
 
-            // Gán role
-            var roleName = string.IsNullOrWhiteSpace(request.Role) ? "Student" : request.Role;
+            // ✅ Luôn gán role mặc định là Student
+            var roleName = "Student";
 
             if (!await _roleManager.RoleExistsAsync(roleName))
-                return BadRequest(new { message = $"Role {roleName} does not exist" });
+            {
+                await _roleManager.CreateAsync(new IdentityRole(roleName));
+            }
 
             await _userManager.AddToRoleAsync(user, roleName);
 

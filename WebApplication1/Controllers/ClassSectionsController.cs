@@ -219,42 +219,36 @@ namespace ClassMate.Api.Controllers
             return NoContent();
         }
 
-        [Authorize]
+        [Authorize(Roles = "Teacher,Admin")] // Chỉ giảng viên hoặc Admin mới xem được danh sách
         [HttpGet("{id:int}/students")]
         public async Task<ActionResult<IEnumerable<object>>> GetStudentsInClass(int id)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (userId == null) return Unauthorized();
 
-            // kiểm tra class tồn tại
+            // 1. Kiểm tra lớp có tồn tại không
             var cls = await _context.ClassSections.FindAsync(id);
-            if (cls == null) return NotFound();
+            if (cls == null) return NotFound("Lớp học phần không tồn tại.");
 
-            // lấy roles
-            var roles = await _userManager.GetRolesAsync(
-                await _userManager.FindByIdAsync(userId)
-            );
-            bool isTeacher = roles.Contains("Teacher") || roles.Contains("Admin");
+            // 2. Kiểm tra quyền (GV phụ trách hoặc Admin)
+            var roles = await _userManager.GetRolesAsync(await _userManager.FindByIdAsync(userId));
+            bool isAdmin = roles.Contains("Admin");
 
-            // nếu không phải teacher/admin thì kiểm tra student có enroll vào lớp không
-            if (!isTeacher)
+            if (!isAdmin && cls.TeacherId != userId)
             {
-                var enrolled = await _context.Enrollments
-                    .AnyAsync(e => e.ClassSectionId == id && e.UserId == userId);
-
-                if (!enrolled)
-                    return Forbid();
+                return Forbid(); // 403 Forbidden
             }
 
-            // lấy danh sách sinh viên trong lớp
+            // 3. Lấy danh sách sinh viên từ bảng Enrollments
             var students = await _context.Enrollments
                 .Where(e => e.ClassSectionId == id)
-                .Include(e => e.User)
+                .Include(e => e.User) // Join bảng User
                 .Select(e => new
                 {
-                    Id = e.User.Id,
+                    StudentId = e.UserId,
                     FullName = e.User.FullName,
-                    Email = e.User.Email
+                    Email = e.User.Email,
+                    StudentCode = e.User.UserName, // Giả sử UserName là Mã SV
+                                                   // EnrolledDate = e.EnrolledDate
                 })
                 .ToListAsync();
 

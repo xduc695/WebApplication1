@@ -1,5 +1,4 @@
 ﻿using System.ComponentModel.DataAnnotations;
-
 namespace ClassMate.Api.DTOs
 {
     public class CreateAttendanceSessionRequest

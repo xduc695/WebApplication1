@@ -155,12 +155,33 @@ if (app.Environment.IsDevelopment())
 // app.UseHttpsRedirection();
 
 // 8. Serve static Avatars
-var avatarPath = Path.Combine(app.Environment.ContentRootPath, "Avatars");
+// --- Đặt đoạn này TRƯỚC app.UseAuthentication() ---
+
+var avatarPath = Path.Combine(builder.Environment.ContentRootPath, "Avatars");
+var assignmentsPath = Path.Combine(builder.Environment.ContentRootPath, "assignments");
+var submissionsPath = Path.Combine(builder.Environment.ContentRootPath, "Submissions");
+
+// Đảm bảo thư mục tồn tại
 Directory.CreateDirectory(avatarPath);
+Directory.CreateDirectory(assignmentsPath);
+Directory.CreateDirectory(submissionsPath);
+
 app.UseStaticFiles(new StaticFileOptions
 {
     FileProvider = new PhysicalFileProvider(avatarPath),
     RequestPath = "/avatars"
+});
+
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(assignmentsPath),
+    RequestPath = "/assignments"
+});
+
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(submissionsPath),
+    RequestPath = "/Submissions"
 });
 
 // 9. Rate limiter

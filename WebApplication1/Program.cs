@@ -189,6 +189,13 @@ app.UseStaticFiles(new StaticFileOptions
     FileProvider = new PhysicalFileProvider(courseResourcesPath),
     RequestPath = "/courseresources"
 });
+// Mở quyền truy cập thư mục CourseMaterials
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(
+        Path.Combine(builder.Environment.ContentRootPath, "CourseMaterials")),
+    RequestPath = "/coursematerials"
+});
 // 9. Rate limiter
 app.UseRateLimiter();
 

@@ -96,5 +96,79 @@ namespace ClassMate.Api.Controllers
             return Ok(data);
         }
 
+        [Authorize(Roles = "Teacher,Admin")]
+        [HttpPut("courseresources/{id}")]
+        public async Task<IActionResult> UpdateResource(int id, [FromForm] CourseResourceCreateRequest request)
+        {
+            var res = await _context.CourseResources
+                .Include(r => r.ResourceFiles)
+                .FirstOrDefaultAsync(r => r.Id == id);
+
+            if (res == null) return NotFound("Tài liệu không tồn tại");
+
+            // Cập nhật thông tin text
+            res.Title = request.Title;
+            res.Description = request.Description;
+            res.LinkUrl = request.LinkUrl;
+
+            // Xử lý thêm file mới (nếu giáo viên chọn thêm)
+            if (request.Files != null && request.Files.Any())
+            {
+                var folder = Path.Combine(_env.ContentRootPath, "CourseResources");
+                if (!Directory.Exists(folder)) Directory.CreateDirectory(folder);
+
+                foreach (var file in request.Files)
+                {
+                    var fileName = $"{Guid.NewGuid()}_{file.FileName}";
+                    var filePath = Path.Combine(folder, fileName);
+
+                    using (var stream = new FileStream(filePath, FileMode.Create))
+                    {
+                        await file.CopyToAsync(stream);
+                    }
+
+                    res.ResourceFiles.Add(new CourseResourceFile
+                    {
+                        FileName = file.FileName,
+                        FileUrl = $"/courseresources/{fileName}"
+                    });
+                }
+            }
+
+            await _context.SaveChangesAsync();
+            return Ok(new { message = "Cập nhật tài liệu thành công" });
+        }
+
+        [Authorize(Roles = "Teacher,Admin")]
+        [HttpDelete("courseresources/{id}")]
+        public async Task<IActionResult> DeleteResource(int id)
+        {
+            var res = await _context.CourseResources
+                .Include(r => r.ResourceFiles) // Include để lấy list file xóa khỏi ổ cứng
+                .FirstOrDefaultAsync(r => r.Id == id);
+
+            if (res == null) return NotFound("Tài liệu không tồn tại");
+
+            // 1. Xóa file vật lý trên server để dọn dẹp bộ nhớ
+            if (res.ResourceFiles != null)
+            {
+                foreach (var file in res.ResourceFiles)
+                {
+                    // Chuyển đường dẫn URL thành đường dẫn vật lý
+                    var filePath = Path.Combine(_env.ContentRootPath, file.FileUrl.TrimStart('/').Replace('/', Path.DirectorySeparatorChar));
+                    if (System.IO.File.Exists(filePath))
+                    {
+                        System.IO.File.Delete(filePath);
+                    }
+                }
+            }
+
+            // 2. Xóa dữ liệu trong DB
+            _context.CourseResources.Remove(res);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Đã xóa tài liệu" });
+        }
+
     }
 }

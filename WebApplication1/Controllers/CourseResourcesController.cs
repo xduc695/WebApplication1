@@ -22,50 +22,48 @@ namespace ClassMate.Api.Controllers
 
         [Authorize(Roles = "Teacher,Admin")]
         [HttpPost("courses/{courseId}/resources")]
-        public async Task<IActionResult> UploadResource(
-            int courseId,
-            [FromForm] CourseResourceCreateRequest request)
+        public async Task<IActionResult> UploadResource(int courseId, [FromForm] CourseResourceCreateRequest request)
         {
             var course = await _context.Courses.FindAsync(courseId);
-            if (course == null) return NotFound();
-
-            string? fileUrl = null;
-            if (request.File != null)
-            {
-                var folder = Path.Combine(_env.ContentRootPath, "CourseResources");
-                Directory.CreateDirectory(folder);
-
-                var ext = Path.GetExtension(request.File.FileName);
-                var fileName = $"cr_{Guid.NewGuid()}{ext}";
-                var filePath = Path.Combine(folder, fileName);
-
-                using (var stream = new FileStream(filePath, FileMode.Create))
-                    await request.File.CopyToAsync(stream);
-
-                fileUrl = $"/courseresources/{fileName}";
-            }
+            if (course == null) return NotFound("Course không tồn tại");
 
             var res = new CourseResource
             {
                 CourseId = courseId,
                 Title = request.Title,
                 Description = request.Description,
-                FileUrl = fileUrl,
-                LinkUrl = request.LinkUrl
+                LinkUrl = request.LinkUrl,
+                ResourceFiles = new List<CourseResourceFile>()
             };
+
+            if (request.Files != null && request.Files.Any())
+            {
+                // Trỏ vào thư mục 'CourseResources' ở gốc dự án
+                var folder = Path.Combine(_env.ContentRootPath, "CourseResources");
+                if (!Directory.Exists(folder)) Directory.CreateDirectory(folder);
+
+                foreach (var file in request.Files)
+                {
+                    var fileName = $"{Guid.NewGuid()}_{file.FileName}";
+                    var filePath = Path.Combine(folder, fileName);
+
+                    using (var stream = new FileStream(filePath, FileMode.Create))
+                    {
+                        await file.CopyToAsync(stream);
+                    }
+
+                    res.ResourceFiles.Add(new CourseResourceFile
+                    {
+                        FileName = file.FileName,
+                        FileUrl = $"/courseresources/{fileName}"
+                    });
+                }
+            }
 
             _context.CourseResources.Add(res);
             await _context.SaveChangesAsync();
 
-            return Ok(new CourseResourceResponse
-            {
-                Id = res.Id,
-                Title = res.Title,
-                Description = res.Description,
-                FileUrl = res.FileUrl,
-                LinkUrl = res.LinkUrl,
-                CreatedAt = res.CreatedAt
-            });
+            return Ok(new { message = "Tải lên tài liệu thành công" });
         }
 
         [Authorize]
@@ -76,19 +74,27 @@ namespace ClassMate.Api.Controllers
             if (!exists) return NotFound();
 
             var data = await _context.CourseResources
+                .Include(r => r.ResourceFiles) // Load danh sách file
                 .Where(r => r.CourseId == courseId)
                 .OrderByDescending(r => r.CreatedAt)
+                .Select(r => new CourseResourceResponse
+                {
+                    Id = r.Id,
+                    Title = r.Title,
+                    Description = r.Description,
+                    LinkUrl = r.LinkUrl,
+                    CreatedAt = r.CreatedAt,
+                    Files = r.ResourceFiles.Select(f => new FileDto
+                    {
+                        Id = f.Id,
+                        FileName = f.FileName,
+                        FileUrl = f.FileUrl
+                    }).ToList()
+                })
                 .ToListAsync();
 
-            return Ok(data.Select(r => new CourseResourceResponse
-            {
-                Id = r.Id,
-                Title = r.Title,
-                Description = r.Description,
-                FileUrl = r.FileUrl,
-                LinkUrl = r.LinkUrl,
-                CreatedAt = r.CreatedAt
-            }));
+            return Ok(data);
         }
+
     }
 }

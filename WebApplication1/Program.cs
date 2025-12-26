@@ -160,6 +160,7 @@ if (app.Environment.IsDevelopment())
 var avatarPath = Path.Combine(builder.Environment.ContentRootPath, "Avatars");
 var assignmentsPath = Path.Combine(builder.Environment.ContentRootPath, "assignments");
 var submissionsPath = Path.Combine(builder.Environment.ContentRootPath, "Submissions");
+var courseResourcesPath = Path.Combine(builder.Environment.ContentRootPath, "CourseResources");
 
 // Đảm bảo thư mục tồn tại
 Directory.CreateDirectory(avatarPath);
@@ -183,7 +184,11 @@ app.UseStaticFiles(new StaticFileOptions
     FileProvider = new PhysicalFileProvider(submissionsPath),
     RequestPath = "/Submissions"
 });
-
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(courseResourcesPath),
+    RequestPath = "/courseresources"
+});
 // 9. Rate limiter
 app.UseRateLimiter();
 

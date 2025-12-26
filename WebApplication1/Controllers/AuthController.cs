@@ -176,6 +176,8 @@ namespace ClassMate.Api.Controllers
             if (user == null)
                 return Unauthorized(new { message = "User not found" });
 
+            var roles = await _userManager.GetRolesAsync(user);
+            var roleName = roles.FirstOrDefault() ?? "Student";
             return Ok(new
             {
                 id = user.Id,
@@ -183,7 +185,8 @@ namespace ClassMate.Api.Controllers
                 fullName = user.FullName,
                 email = user.Email,
                 avatarUrl = user.AvatarUrl,
-                createdAt = user.CreatedAt
+                createdAt = user.CreatedAt,
+                role = roleName
             });
         }
         [Authorize]

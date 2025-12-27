@@ -23,9 +23,8 @@
 
   <ItemGroup>
     <Folder Include="Avatars\" />
-    <Folder Include="assignments\" />
     <Folder Include="CourseMaterials\" />
-    <Folder Include="CourseResources\" />
+    <Folder Include="courseresources\" />
   </ItemGroup>
 
 </Project>

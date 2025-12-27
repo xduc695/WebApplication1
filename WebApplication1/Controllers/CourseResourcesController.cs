@@ -138,7 +138,25 @@ namespace ClassMate.Api.Controllers
             await _context.SaveChangesAsync();
             return Ok(new { message = "Cập nhật tài liệu thành công" });
         }
+        [Authorize(Roles = "Teacher,Admin")]
+        [HttpDelete("resources/files/{fileId}")]
+        public async Task<IActionResult> DeleteSingleFile(int fileId)
+        {
+            var file = await _context.CourseResourceFiles.FindAsync(fileId);
+            if (file == null) return NotFound("File không tồn tại.");
 
+            // Xóa file vật lý
+            var filePath = Path.Combine(_env.ContentRootPath, "CourseResources", Path.GetFileName(file.FileUrl));
+            if (System.IO.File.Exists(filePath))
+            {
+                System.IO.File.Delete(filePath);
+            }
+
+            _context.CourseResourceFiles.Remove(file);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Đã xóa file thành công" });
+        }
         [Authorize(Roles = "Teacher,Admin")]
         [HttpDelete("courseresources/{id}")]
         public async Task<IActionResult> DeleteResource(int id)
